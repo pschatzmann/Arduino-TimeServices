@@ -51,7 +51,9 @@ class NtpPublisher : public tiny_ntp::TinyTimeSource {
  protected:
   TimeEngine& engine_;
   tiny_ntp::TinyNTPServer<UDPAPI> server_;
+  static constexpr uint32_t kRetryMs = 30000;
   bool running_ = false;
+  uint32_t failedMs_ = 0;  // millis() of the last failed begin() (0 = none)
   bool checked_ = false;
   uint32_t lastCheckMs_ = 0;
   uint16_t port_ = 0;
@@ -63,6 +65,7 @@ class NtpPublisher : public tiny_ntp::TinyTimeSource {
     const bool online = engine_.networkAvailable();
     const bool want = cfg.ntpServer.enabled && online;
     const bool changed = cfg.ntpServer.listenPort != active_.listenPort;
+    if (changed || !want) failedMs_ = 0;  // a new port or state: try at once
     if (running_ && (!want || changed)) {
       server_.end();
       running_ = false;
@@ -81,8 +84,12 @@ class NtpPublisher : public tiny_ntp::TinyTimeSource {
     server_.setReferenceTimeMs(p.lastDisciplineMs > 0 ? static_cast<uint64_t>(p.lastDisciplineMs) : 0);
 
     NtpServerState st = engine_.ntpServerState();
-    if (want && !running_) {
+    // a port that could not be opened is tried again after kRetryMs
+    const uint32_t now = millis();
+    const bool retryDue = failedMs_ == 0 || now - failedMs_ >= kRetryMs;
+    if (want && !running_ && retryDue) {
       running_ = server_.begin(*this, cfg.ntpServer.listenPort);
+      failedMs_ = running_ ? 0 : (now == 0 ? 1 : now);
       port_ = cfg.ntpServer.listenPort;
       st = NtpServerState();
       st.port = port_;

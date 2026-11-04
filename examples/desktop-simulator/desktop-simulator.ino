@@ -117,6 +117,9 @@ void setup() {
   DefaultBoard.setTitle("Time Services");
   gui.begin();
   ntpThread = std::thread(ntpLoop);
+  // closing the window ends the program with exit(): stop the thread first
+  // (a running std::thread would abort the program)
+  atexit(stop);
 
   const char* dir = getenv("TS_SCREENSHOTS");
   if (dir != nullptr) screenshots(dir);
