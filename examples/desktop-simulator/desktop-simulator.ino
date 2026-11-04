@@ -4,9 +4,13 @@
  *
  * The NTP sources are queried for real over the network of the computer
  * (TinyNTP with the UDP class of the Arduino emulator) in their own thread.
- * The NTP server listens on port 12123 (port 123 needs root). The system
- * clock of the computer is only measured, never set. There is no GNSS
- * receiver and no Bluetooth.
+ * The NTP server listens on the NTP port 123. On Linux the program needs
+ * the right to use it (ports below 1024 are privileged), e.g.
+ *   sudo setcap 'cap_net_bind_service=+ep' build/examples/desktop-simulator
+ * (again after each build); otherwise the Publish tab shows that the port
+ * could not be opened. The environment variable TS_NTP_PORT selects another
+ * port (e.g. 12123). The system clock of the computer is only measured,
+ * never set. There is no GNSS receiver and no Bluetooth.
  *
  * The WiFi page works with a simulated WiFi (the password of the secure
  * networks is "demo"). It starts connected; with the environment variable
@@ -86,7 +90,9 @@ void screenshots(const char* dir) {
 void setup() {
   Serial.begin(115200);
   SystemConfig cfg = defaultConfig();
-  cfg.ntpServer.listenPort = 12123;  // no root needed
+  // the NTP port 123, or TS_NTP_PORT (no privileges needed above 1023)
+  const char* port = getenv("TS_NTP_PORT");
+  if (port != nullptr && atoi(port) > 0 && atoi(port) < 65536) cfg.ntpServer.listenPort = static_cast<uint16_t>(atoi(port));
   cfg.ntpServer.enabled = true;
   copyText(cfg.timeZone, "Europe/Zurich");
   engine.begin(cfg);

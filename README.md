@@ -1,86 +1,52 @@
 # Arduino-TimeServices
 
-A header-only Arduino library that gathers the time from NTP servers, a GNSS receiver and Bluetooth LE peers, combines it into one clock estimate and serves that time to other devices over NTP and the Bluetooth LE Current Time Service. A touch GUI shows the clock, the sources, the servers and charts.
+A header-only Arduino library that gathers time from NTP servers, a GNSS receiver and Bluetooth LE peers, combines it into one clock estimate, and serves that time to other devices over NTP and Bluetooth LE (Current Time Service). A touch GUI shows the clock, the sources, the servers and charts.
 
-This is the Arduino port of [Android-Time-Services](https://github.com/pschatzmann/Android-Time-Services). It uses [TinyNTP](https://github.com/pschatzmann/TinyNTP) for NTP, [TinyCTS](https://github.com/pschatzmann/TinyCTS) for the Bluetooth Current Time Service, and [TinyMaterialDesign](https://github.com/pschatzmann/TinyMaterialDesign) for the GUI.
+This is the Arduino port of [Android-Time-Services](https://github.com/pschatzmann/Android-Time-Services). It uses [TinyNTP](https://github.com/pschatzmann/TinyNTP), [TinyCTS](https://github.com/pschatzmann/TinyCTS) and [TinyMaterialDesign](https://github.com/pschatzmann/TinyMaterialDesign).
 
-## Features
+> **Status:** working prototype, tested on the desktop and on one board (ESP32-S3 2.8" display). See [Important limits](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Important-Limits).
 
-- **Sources:** a configurable list of NTP servers (TinyNTP), a GNSS receiver (NMEA over serial, optional PPS pin) and BLE Current Time Service peers (TinyCTS).
-- **Fusion:** weighted mean ("Kalman"), median ("Marzullo") or PLL/FLL smoothing, outlier rejection, holdover, reach, jitter, drift, root delay and dispersion.
-- **Publishing:** an NTP server (TinyNTPServer with allowed subnets and a rate limit) and a BLE Current Time Service peripheral (TinyCTSServer). You choose what is published: the fused clock, the system clock or a single source.
-- **System clock:** optionally sets the clock of the device (settimeofday()) to the fused time.
-- **GUI:** 5 tabs:
-  - Clock: local, UTC, TAI or GPS time; the time zone with DST and its CTS encoding; the synchronisation quality.
-  - Sources
-  - Publish
-  - Metrics
-  - Settings
-- **Layered:** use only the engine and the sources and servers (no display), or the complete touch GUI.
-- **Desktop build** with CMake: the GUI in an SDL2 window with real NTP queries, plus the unit tests.
+![Screenshots](docs/screenshots.png)
 
-## Architecture
+## Highlights
 
-| Layer | Classes |
-|---|---|
-| Engine | `TimeEngine` (fusion, telemetry, alerts, `published()`), `LocalClock` / `SystemClock`, `TimeZoneInfo` (TinyTimeZone, any IANA zone) |
-| Sources | `NtpSources<UDP>` (TinyNTPClient), `GnssSource` (TinyGPSTimeSource: NMEA + PPS), `CtsSource` (TinyCTSClient, `TimeServices/BleCts.h`) |
-| Publishers | `NtpPublisher<UDP>` (TinyNTPServer), `CtsPublisher` (TinyCTSServer, `TimeServices/BleCts.h`) |
-| GUI | `TimeServicesApp` (frame, `tinymd::PageNavigator`), `ServicePage` (a `tinymd::Page`), `ClockPage`, `SourcesPage`, `PublishPage`, `MetricsPage`, `SettingsPage` |
+- **Sources:** a configurable list of NTP servers, a GNSS receiver (NMEA, optional PPS) and BLE Current Time Service peers.
+- **Fusion:** weighted mean, median or PLL/FLL smoothing with outlier rejection and holdover; optionally sets the clock of the device.
+- **Publishing:** an NTP server (UDP) and a BLE Current Time Service peripheral; you choose which source is published.
+- **GUI:** Clock, Sources, Publish, Metrics and Settings tabs, and a WiFi page for the network login.
+- **Layered:** use only the engine with the sources and servers (no display), or the complete touch GUI.
+- **Desktop build** with CMake: the GUI in an SDL2 window with real NTP queries, and the unit tests.
 
-The blocking sources (NTP queries, BLE scans) run in their own tasks. The engine is thread safe.
+## Documentation
 
-```cpp
-#include "TimeServices.h"
+The documentation is in the [project wiki](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Home):
 
-TimeEngine engine;
-NtpSources<WiFiUDP> ntpSources(engine);     // network task: ntpSources.update()
-NtpPublisher<WiFiUDP> ntpServer(engine);
-TimeServicesApp<RGB565> gui(board, engine);
+- [User manual](https://github.com/pschatzmann/Arduino-TimeServices/wiki/User-Manual) (a screenshot and description of every tab, the menu and the WiFi page)
+- [Features](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Features)
+- [Important limits](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Important-Limits)
+- [Example: ESP32-S3 2.8" Display](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Example-ESP32-S3-Hosyond)
+- [Arduino API](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Arduino-API)
+- [Desktop build](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Desktop-Build)
+- [Differences to the Android app](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Differences-to-the-Android-App)
+- [Project layout](https://github.com/pschatzmann/Arduino-TimeServices/wiki/Project-Layout)
 
-void setup() {
-  engine.begin(defaultConfig());
-  gui.begin();
-}
+## Install
 
-void loop() {
-  engine.tick();
-  ntpServer.process();
-  gui.update();
-}
-```
-
-## Examples
-
-- [desktop-simulator](examples/desktop-simulator): the GUI in an SDL2 window. It makes real NTP queries and runs an NTP server on port 12123.
-- [esp32-s3-hosyond](examples/esp32-s3-hosyond): ESP32-S3 2.8" display with WiFi (NTP), Bluetooth (CTS client and server), an optional GNSS receiver and settings stored in flash.
-
-## Desktop build
+You can download the library as zip (on GitHub: **Code** → **Download ZIP**) and add it in the Arduino IDE with **Sketch** → **Include Library** → **Add .ZIP Library...**. Or you can git clone this project into the Arduino libraries folder, e.g.
 
 ```
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build
-./build/examples/desktop-simulator
+cd ~/Documents/Arduino/libraries
+git clone https://github.com/pschatzmann/Arduino-TimeServices.git
 ```
 
-The dependencies are fetched from GitHub. Use `-DFETCHCONTENT_SOURCE_DIR_<NAME>=<path>` to use local checkouts. Set `TS_SCREENSHOTS=<dir>` to save a screenshot of every page.
+I recommend git, because you can update to the latest version just by executing `git pull` in the project folder.
 
-## Differences to the Android app
-
-- The device clock can be set (`stepSystemClock`). Android only estimates the offset.
-- GNSS comes from an NMEA receiver with optional PPS (TinyNTP's `TinyGPSTimeSource`), not from the Location API or the raw GNSS clock.
-- English only, with no notifications. Alerts are shown on the Clock page and reported to `TimeEngine::onAlert`.
-- Not ported: the NTP analyser and the self test of the NTP server, the keep-awake setting, and the PPS click sound.
-
-## Installation in Arduino
-
-Clone this project and the dependencies into the Arduino libraries folder:
+Install the dependencies the same way:
 
 - [TinyMaterialDesign](https://github.com/pschatzmann/TinyMaterialDesign) and [TinyGPU](https://github.com/pschatzmann/TinyGPU)
-- [TinyNTP](https://github.com/pschatzmann/TinyNTP) (GPL v3)
-- [TinyCTS](https://github.com/pschatzmann/TinyCTS) (GPL v3) and [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) on the ESP32: needed only for Bluetooth
+- [TinyNTP](https://github.com/pschatzmann/TinyNTP)
+- [TinyCTS](https://github.com/pschatzmann/TinyCTS) and, on the ESP32, [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) (also in the Library Manager): needed only for Bluetooth
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). TinyNTP and TinyCTS are GPL v3: a program built with them is covered by the GPL.
