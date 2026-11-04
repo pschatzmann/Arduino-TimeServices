@@ -2,6 +2,10 @@
  * @file desktop-simulator.ino
  * @brief The Time Services GUI in a desktop SDL2 window (mouse = touch).
  *
+ * The window shows the 240x320 display 1.5 times as large (360x480); the
+ * environment variable TINYGPU_SDL_SCALE selects another factor (e.g. 1 or
+ * 2), and the window can also be resized.
+ *
  * The NTP sources are queried for real over the network of the computer
  * (TinyNTP with the UDP class of the Arduino emulator) in their own thread.
  * The NTP server listens on the NTP port 123. On Linux the program needs
@@ -30,6 +34,7 @@
 #include "TimeServices.h"
 #include "WiFiUdp.h"
 
+float scale = 1.5f;  // the display is shown 1.5 times as large in the SDL2 window
 TimeEngine engine;
 NtpSources<WiFiUDP> ntpSources(engine);
 NtpPublisher<WiFiUDP> ntpPublisher(engine);
@@ -108,6 +113,8 @@ void setup() {
     stop();
     exit(0);
   };
+  DefaultBoard.setScale(scale);  // the 240x320 display in a 360x480 window
+  DefaultBoard.setTitle("Time Services");
   gui.begin();
   ntpThread = std::thread(ntpLoop);
 
